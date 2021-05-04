@@ -1,0 +1,569 @@
+---
+title: "Rapport d'étude statistiques : Programmes d'aides à destination des provinces d'Argentine"
+author: "Guenola MAERE"
+date: "14/03/2021"
+output:
+  html_document : 
+    toc: TRUE
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### Produit par le cabinet d'études Socio-Dev pour **UNICEF Argentine**
+
+------------------------------------------------------------------------
+
+# [I - Présentation du rapport]{style="color:red"}
+
+## Objectif
+
+<p style="text-align:justify;">
+La crise sanitaire mondiale a plongé des millions de personnes dans la pauvreté n'épargnant aucun pays. La situation de nombreux argentins s'est alors considérablement dégradée, rendant une partie de la population encore plus vulnérable. Afin de renforcer les mesures d'urgence prises par le gouvernement argentin, nous proposons à travers ce rapport d'une part, de cibler les provinces pour lesquelles le programme **Women empowerment** correspondrait le plus. D'autre part, d'identifier parmi les provinces les mieux dotées économiquement et sanitairement, celles qui seraient le plus en mesure de bénéficier du programme **No-Poor**, le but étant de parvenir à aider une majorité d'argentins en difficultés peu importe la région à laquelle ils appartiennent.
+</p>
+
+## Présentation des données et outils
+
+<p style="text-align:justify;">
+L'ensemble du travail réalisé se base sur les méthodes en statistiques exploratoires - ou data mining - les plus courantes que sont l'Analyse en Composantes Principales (ACP), la méthode des K-means et la Classification Hiérachique Ascendante (ACH). Parfois, les provinces seront désignées par le terme "individu" régulièrement utilisé en statistique. Les données sur lesquelles les résultats sont produits sont disponibles [en ligne](https://www.google.com/url?sa=D&q=https://48652267-876637319111280815.preview.editmysite.com/uploads/4/8/6/5/48652267/argentina.csv&ust=1615713180000000&usg=AOvVaw1f5bXNEcHLkb14qHbSLPdB&hl=fr). La base de données recense au total 22 provinces dont Buenos Aires. Plusieurs indicateurs  socio-économiques - au total 12 - y sont recensés tels que le taux de pauvreté, le PIB, le nombre de médecins par habitants ou encore la population. Ces indicateurs renseignent sur les atouts ou handicaps que rencontrent les provinces.
+</p>
+
+------------------------------------------------------------------------
+
+# [II - Analyse des données]{style="color:red"}
+
+
+## [1. La vulnérabilité : une notion au caractère multidimensionel]{style="color:darkblue"}
+
+<p style="text-align:justify;">
+Le programme Women Empowerment destiné à aider les mères célibataires au sein des régions les plus vulnérables nous conduit à définir la notion de vulnérabilité. La pauvreté est sans doute le critère le plus intuitif auquel on pense. Toutefois, la vulnérabilité est **multi-dimensionnelle[^1]** . Intimement liée à l'impact d'un dommage sur une société[^2], elle traduit finalement la capacité de cette dernière à faire face à un événement.
+Ainsi, l'étude du caractère multi-dimensionnel de la vulnérabilité nous conduit à mobiliser l'ACP. Cette méthode a pour but de de maximiser l'information retenue avec un minimum de variables. Il est alors possible d'étudier les relations entre les différentes variables et de sélectionner les plus pertinentes d'entre elles qui résument au mieux les informations contenues au sein de la base de données mais surtout qui nous permettent d'identifier les potentiels groupes que l'on pourrait former à partir des profils de chaque province. Un avantage supplémentaire de cette méthode est la mise en exergue des relations ou caractéristiques qui ne sont pas visibles à première vue.
+</p>
+
+[^1]: Danielle Dierckx, *Au travail, mais pauvre et sans le pouvoir de se faire entendre ? Rapport de la consultante sur l'autonomisation des personnes confrontées à la grande pauvreté*, 2009. Disponible en ligne : https://www.cnle.gouv.fr/IMG/pdf/MALTE_RAPPORT_DU_CONSULTANT_SUR_LAUTONOMISATION_DES_PERSONNES_CONFRONTEES_A_LA_GRANDE_PAUVRETE.pdf.
+
+[^2]: Géoconfluences, *Vulnérabilité*. Disponible en ligne :  http://geoconfluences.ens-lyon.fr/glossaire/vulnerabilite (consulté le févr. 25, 2021).
+
+
+
+## [2. Analyse en Composantes Principales (ACP)]{style="color:darkblue"}
+
+### 2.1. Chargement des données
+```{r}
+#Chargement des données
+data_arg <- read.csv(file = "data_argentina.csv", header = TRUE, sep = ",")
+```
+Le PIB par habitant étant un indicateur économique pertinent pour mesurer la richesse sur un territoire, nous l'ajoutons à notre base.
+
+```{r}
+data_arg$gdp_cap <- (data_arg$gdp/data_arg$pop)
+```
+
+
+### 2.2. Étapes préalables à l'ACP
+
+#### 2.2.A - Étude des corrélations entre variables
+
+<p style="text-align:justify;">
+Avant de réaliser une ACP, il est nécessaire de visualiser la matrice des corrélations afin de voir la façon dont les variables sont corrélées ou non entre elles. La matrice nécessite que les vecteurs soient uniquement numériques. Par conséquent, nous créons un nouveau sous-échantillon nommé "da" (pour lequel nous nous assurons de retirer les valeurs manquantes s'il y en a).
+</p>
+
+```{r}
+library(corrplot)
+
+#Omission des valeurs manquantes
+da <- na.omit(data_arg)
+
+#Renommer les lignes du jeu de données principal
+row.names(data_arg) <- data_arg$province 
+
+#Définition d'un subset pour réaliser la matrice des corrélations
+da <- data_arg[,2:12]
+mat_cor <- cor(da)
+
+corrplot(mat_cor, method = "number", type = "lower")
+```
+<p style="text-align:justify;">
+Nous constatons que la pauvreté est corrélée positivement au manque d'accès aux soins de santé (0.69) et à l'illétrisme (0.64). Le manque d'accès soins de santé est également lié au manque d'infrastructures (0.63). La population et le PIB sont très fortement corrélés.
+En outre, le nombre de médecins par habitants varie négativement à mesure que la pauvreté augmente (-0.64). Enfin, on peut noter que le nombre de cinémas par habitants diminue au sein des provinces où le taux d'illétrisme est élevé (0.63).
+</p>
+
+------------------------------------------------------------------------
+#### 2.2. B - Sélection des variables pertinentes à la réalisation de l'ACP
+
+<p style="text-align:justify;">
+Comme évoqué précédemment, la réalisation d'une ACP nécessite de ne retenir uniquement les variables jugées utiles pour cibler les territoires les plus vulnérables. C'est pourquoi nous redéfinissons notre échantillon "da" avec les variables choisies.
+</p>
+
+```{r}
+#Définition d'un nouveau subset
+da <- data_arg[-1,c( "gdp_cap", "poverty","deficient_infra", "no_healthcare", "doctors_per_cap",
+                     "pop")]
+```
+
+<p style="text-align:justify;">
+Ce choix repose principalement sur le rapport du docteure en sciences politiques et sociales Danielle Dierckx citée plus haut. En effet, le manque d'infrastructures - que ce soit de transports, publiques, sociales - est également un élément central à prendre un compte dans la difficulté d'insertion de mères célibataires. Les "conditions d'accès et l'utilisation des ressources[^3]" telles que des structures d'accueil pour enfants par exemple permet aux femmes de pouvoir rechercher un emploi et par conséquent d'accroitre leurs revenus. En ces temps de crise sanitaire, l'accès aux soins médicaux est central. La disparité du personnel médical entre les territoires rendent certains encore plus vulnérables que d'autres.
+</p>
+
+<p style="text-align:justify;">
+La variable relative au taux d'illétrisme qui est tout de même fortement liée à la pauvreté a été omise car elle altérait la qualité de l'ACP dans le sens où l'inertie captée par les axes principaux était trop faible et donc pas satisfaisante. Enfin, Buenos Aires en tant que province autonome ne bénéficiera pas de fait des dispositifs créés, c'est la raison pour laquelle elle est retirée de la base.
+</p>
+
+[^3]: *Ibid*
+
+------------------------------------------------------------------------
+
+#### 2.2.C -  Réalisation du test de Bartlett
+
+<p style="text-align:justify;">
+Afin de réaliser une ACP, il est courant de réaliser un test de Bartlett relatif à l'indépendance des variances. En effet, c'est un indicateur pour juger de la pertinence de la réalisation de l'ACP puisque si les variables sont toutes indépendantes les unes des autres (Hypothèse 0) il n'y a alors aucun intérêt à réaliser cette opération.
+</p>
+
+
+```{r}
+#Test de Bartlett pour PCA 
+library(psych)
+bar.test <- cortest.bartlett(mat_cor, n=nrow(da))
+bar.test
+```
+A l'issue du test de Bartlett, on obtient une statistique du Chi-Deux (187.6) qui s'éloigne effectivement de cette notion d'indépendance des variables. Ce test est significatif puisque l'on obtient une p-valeur inférieure à 1% donc on peut rejeter l'hypothèse nulle selon laquelle les variances observées sont identiques. Il est alors pertinent de réaliser une ACP sur ce nouveau jeu de données.
+
+------------------------------------------------------------------------
+#### 2.2.D - Standardisation des données
+
+Nous procédons à la standardisation des données (centrage et réduction) car celles-ci sont exprimées dans des unités différentes. Pour pouvoir les comparer et représenter le plus fidèlement possible le nuage de points, il est nécessaire d'enlever cet effet unité.
+
+```{r}
+#Standardisation des données
+daSTD <- scale(da)
+```
+
+<p style="text-align:justify;">
+A partir de ces premières données, on constate déjà que les provinces de Neuquen et Santa Cruz enregistrent une valeur de leur PIB par habitant relativement élevée par rapport aux autres provinces. En ce qui concerne  le manque d'infrastructures les provinces de Chaco (2.5) et Formosa (2.07) semblent se démarquer.
+</p>
+
+------------------------------------------------------------------------
+
+### 2.3 - Réalisation de l'ACP : Variables
+
+#### 2.3.1 - ACP et choix des vecteurs propres
+
+```{r}
+library(factoextra)
+library(FactoMineR)
+
+#Réalisation de l'ACP
+res.pca <- PCA(daSTD, graph = FALSE)
+```
+
+Il est nécessaire de déterminer le nombre d'axes que l'on souhaite conserver pour l'ACP. En effet, plus on en garde, plus l'information retenue est importante mais moins elle est lisible sur un plan à deux dimensions. Il existe plusieurs méthodes pour faire ce choix.
+</p>
+
+##### <u>1ère méthode : La prise en compte des valeurs propres : le critère de Kaiser</u>
+
+Il s'agit d'une méthode qui renseigne sur l'information captée par un axe par rapport à l'inertie moyenne d'une variable d'origine. Généralement, une valeur propre supérieure à 1 est le critère à partir duquel on décide de conserver un axe.
+
+```{r}
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+```
+<p style="text-align:justify;">
+Les deux premières dimensions (ou axes) ont des valeurs propres supérieures à 1. 
+Le premier axe capte plus de 53% de l'inertie (ou variabilité) de notre jeu de données. Par conséquent, cela signifie qu'il semble y avoir une structuration importante des données sur celui-ci. Le deuxième axe quant à lui capte plus de 24% de l'inertie. En résumé, c'est plus de 77% de l'information qui est conservée lorsque l'on choisit de ne retenir uniquement ces 6 variables ce que nous jugeons acceptable dans ce cas. 
+</p>
+
+##### <u>2ème méthode : Méthode du coudre d'effondrement</u>
+
+Cette méthode de sélection des axes se réalise au moyen d'un "scree plot".
+
+```{r}
+#Visualisation via un scree plot
+fviz_eig(res.pca, addlabels = TRUE)
+```
+<p style="text-align:justify;">
+Avec ce graphique on aurait tendance à sélectionner les trois premiers axes puisque l'on observe une réelle rupture de linéarité à partir du troisième axe. L'ajout d'axes supplémentaires n'expliquent davantage que faiblement la variance (on passe de 10% à 5% puis 3%). 
+Finalement, on ne retiendra que les deux premiers axes pour l'interprétation de l'ACP car on estime que 77% de la variance expliquée est tout à fait satfisfaisante.
+</p>
+
+------------------------------------------------------------------------
+
+#### 2.3.2 - Analyse des variables
+
+Il est à présent nécessaire de nous intéresser de plus près au sens de chaque axe à travers l'analyse des variables.
+
+```{r}
+# Contributions des variables à l'axe 1
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 5)
+# Contributions des variables à l'axe 2
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 5)
+```
+
+<p style="text-align:justify;">
+Pour le premier axe - représentant 53.5% de l'inertie - ce sont les variables concernant la pauvreté et le manque d'accès aux soins qui y contribuent le plus. On pourrait le qualifier d'axe des **"vulnérabilités ou difficultés économiques et sociales"** puisqu'il représente majoritairement les variables "sensibles".
+Quant au deuxième axe, ce sont les variables relatives à la population et au nombre de médecins par habitants qui y contribuent le plus.
+</p>
+
+
+
+<p style="text-align:justify;">
+Toutefois, pour juger de la qualité de la représentation de ces variables au sein de l'ACP nous examinons le cosinus carré de chacune d'entre elles. Plus celui-ci est élevé, meilleure est la représentation de la variable.
+</p>
+
+**Visualisation graphique : Cercle des corrélations**
+
+```{r}
+fviz_pca_var(res.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE
+             )
+```
+
+<p style="text-align:justify;">
+Cette analyse de la qualité à travers le cercle des corrélations témoigne dans un premier temps d'une bonne représentation de l'ensemble des variables - avec tout de même la variable relative au manque d'infrastructures moins bien représentée par rapport aux autres -  puisque leur cosinus carré est supérieur à 0.70. Toutefois, les variables relatives à la population, à la présence de médecins et aux manques d'accès aux soins sont les mieux représentées. La proximité des deux premières variables indiquent une corrélation entre ces dernières. A l'inverse, les angles droits formés par la projection de la population avec les variables relatives aux manques de soin ou d'infrastructures témoignent de l'indépendance de ces variables entre elles.
+En résumé, on peut retenir que les variables qui contribuent le plus aux axes sont assez bien représentées sur ces derniers ce qui nous conduit à confirmer le sens premier attribuer à chacun d'entre eux.
+</p>
+
+------------------------------------------------------------------------
+
+
+#### 2.3.3 - Analyse des individus
+
+A présent, analysons la contribution des individus aux deux axes.
+
+```{r}
+# Contribution totale sur PC1 et PC2
+fviz_contrib(res.pca, choice = "ind", axes = 1)
+fviz_contrib(res.pca, choice = "ind", axes = 2)
+```
+
+<p style="text-align:justify;">
+Les provinces de Formosa, Chaco, Santa Fe, Cordoba etc... autrement dit toutes celles dont la contribution dépasse la contribution moyenne attendue (en pointillés rouges) sont celles qui contribuent le plus à la formation du premier axe. On peut dès à présent voir que ce sont bien des provinces au sein desquelles les difficultés socio-économiques sont fortes.
+</p>
+
+<p style="text-align:justify;">
+Puis, ce sont les provinces de  Cordoba, Santa Cruz, Santa Fe, Chubut qui ont le plus contribué à la formation du deuxième axe. Les contributions nous donnent une idée du sens et de l'interprétation finale que nous ferons de l'ACP. Tout comme pour les variables, nous jugerons de la qualité de la représentation de ces provinces à travers l'examen du cosinus carré.
+</p>
+
+
+------------------------------------------------------------------------
+#### 2.3.4 - Résultats et interprétation de l'ACP
+
+```{r}
+ind <- get_pca_ind(res.pca)
+
+#Qualité de la représentation des individus
+fviz_pca_biplot( res.pca, repel = TRUE,
+                 col.ind = "cos2", 
+                 pointsize = "cos2",
+                 gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"))
+```
+<br>
+<br>
+On note l'apparition de trois groupes bien distincts.
+
+<p style="text-align:justify;">
+D'un côté, on retrouve les provinces de Santa Fe et Cordoba - bien représentées sur l'ACP - au sein desquelles on observe un véritable dynamisme économique et où le nombre de médecins par actif est élevé. En effet, ces deux provinces voisines et frontalières à Buenos Aires ont une situation économique développée où le tissu urbain, économique et social est bien présent. Le développement d'un pôle technologique à Cordoba lui profite incontestablement[^4].
+</p>
+
+
+[^4]: Romain GAIGNARD, *Cordoba, Argentine*. En ligne : https://www.universalis.fr/encyclopedie/cordoba-argentine/
+
+
+<p style="text-align:justify;">
+Puis, à l'opposé on retrouve les provinces en difficultés pincipalement situées au nord du pays - Chaco, Formosa, Corrientes, Santiago del Estero - qui cumulent les handicaps soccio-économiques. L'accès aux soins de santé y est difficile sinon inexistants. De plus, le taux de pauvreté y est élevé. Par conséquent, on peut les qualifier de **provinces vulnérables**.
+</p>
+
+<p style="text-align:justify;">
+Enfin, on note un troisième groupe au sein duquel on retrouve les provinces telles que Santa Cruz  ou encore Chubut pour lesquelles le PIB par habitant est relativement élevé. Leur population semble assez faible comparativement aux autres provinces. Ces territoires semblent davantage épargnés par les difficultés socio-économiques que celles situées au du Nord du pays.
+</p>
+
+
+<p style="text-align:justify;">
+A l'issue de cette ACP, on recense un ensemble de provinces particulièrement vulnérables. Toutefois, le but de l'ACP n'étant pas la catégorisation et la définition d'une véritable typologie des individus, nous utiliserons deux méthodes - appelées méthodes de partitionnement - employées en statistique exploratoire afin de vérifier nos hypothèses sur les provinces qui seraient les plus à mêmes de bénéficier des différents programmes.
+</p>
+
+
+
+------------------------------------------------------------------------
+
+
+## [3- Méthodes de partitionnement]{style="color:darkblue"}
+
+
+### 3.1 - La classification ascendante hiérarchique
+
+Cette méthode de classification a pour but de rassembler les individus les plus homogènes entre eux sous la forme d'un dendrogramme à partir de la distance entre chaque individu. Ici, nous utiliserons la distance euclidienne. <br>
+
+Etant donné qu'il existe plusieurs méthodes pour construire un dendogramme, la comparaison des différents coefficients d'agglomération de chaque méthode est nécessaire pour retenir la méthode la plus robuste.
+
+```{r}
+#Matrice des distances
+distanceE <- get_dist(daSTD)
+
+#Noms des différents coefficients
+coeff_agg <- c( "average", "single","complete", "ward")
+names(coeff_agg) <- c( "average", "single","complete", "ward")
+
+# Fonction pour la comparaison des différents coefficients d'agglomération
+library(cluster)
+library(purrr)
+ac <- function(x)agnes(distanceE, method = x)$ac
+map_dbl(coeff_agg, ac)
+```
+
+C'est le coefficient de la méthode de Ward - généralement la plus utilisée car elle minimise la variance intra-groupe et maximise la variance inter-groupe - qui est le plus élevé (0.86) ce qui prétend une structure de regroupement assez forte et robuste. C'est donc celui-ci que nous retiendrons.
+
+```{r}
+#Réalisation du clustering avec la méthode de Ward et la distance euclidienne
+hc1 <-hclust(distanceE, method ="ward.D2" )
+
+fviz_dend(hc1 , k = 3, horiz = TRUE , rect = TRUE ,
+          rect_fill = TRUE, 
+          main = "Dendrogramme - Provinces d'Argentine")+
+          theme_minimal()
+
+
+sub_grp <- cutree(hc1, k = 3)
+sub_grp1 <- cutree(hc1, k = 4)
+
+```
+Comme on a pu le voir au sein de l'ACP, trois groupes distincts et sensiblement similaires semblent également se dessiner à travers cette première représentation.
+
+
+A présent, il est nécessaire de voir si ce partitionnement est le plus optimal. Pour cela, nous emploierons trois méthodes courantes afin de sélectionner véritablement le nombre de groupes le plus pertinent.
+
+------------------------------------------------------------------------
+
+
+##### <u>Première méthode : la minimisation de la somme des carrés intra clusters (Elbow)</u>
+
+La constitution des groupes est réalisée de façon à ce que la variance intra-groupe soit la plus petite possible témoignant d'une similarité forte entre les provinces d'une même classe. 
+
+```{r}
+fviz_nbclust(daSTD, FUN = hcut,method = "wss") +
+              geom_vline(xintercept = 4, linetype = 2)+
+            labs(subtitle = "Elbow method")+theme_minimal()
+
+```
+
+Ici, le nombre optimal de cluster minimisant la somme des carrés intra-cluster est de 4. Toutefois, la rupture dans la linéarité du WSS n'est pas évidente.
+
+<br>
+
+##### <u>Deuxième méthode : l'indice silhouette</u>
+
+```{r}
+fviz_nbclust(daSTD, FUN = hcut,method = "silhouette") + theme_minimal()
+```
+
+L'indice silhouette - qui mesure la qualité du clustering,  un indice est élevé correspondant à un nombre de cluster optimal -   converge vers la construction de 3 groupes.
+
+##### <u>3ème méthode : L'écart-statistique</u>
+
+
+```{r}
+
+gap_stat <- clusGap(daSTD, FUN =hcut, nstart = 25, K.max = 15, B = 50)
+print(gap_stat, method ="firstmax")
+
+fviz_gap_stat(gap_stat)+theme_minimal()
+```
+<br>
+<br>
+Selon cette dernière méthode, le nombre de clusters optimal s'élèverait à 4.
+
+<p style="text-align:justify;">
+Deux méthodes sur trois convergent vers l'hypothèse d'un partitionnement des provinces en 4 groupes distincts. Toutefois, pour consolider la constitution des clusters, il est pertinent d'analyser le partitionnement produit par la méthode des k-means.
+</p>
+
+------------------------------------------------------------------------
+
+### 3.2 - La méthode des k-means
+
+<p style="text-align:justify;">
+A la différence de la méthode précédente, il est nécessaire de définir en amont le nombre de clusters à partir duquel l'algorithme va réaliser le partitionnement. Suite à l'ACP réalisée précédemment, à la classification hiérarchique et aux données, nous retiendrons en priorité un partitionnement en 3 et 4 groupes que nous comparerons.
+</p>
+
+```{r}
+#Réalisation des kmeans
+km1 <- kmeans(daSTD, centers =3, nstart = 25)
+km2 <- kmeans(daSTD, centers =4, nstart = 25)
+
+#Visualisation k=3
+library(kableExtra)
+kable(km1$centers, digits = 3) %>%
+kable_minimal()
+```
+
+**Caractéristiques des groupes à travers l'analyse des moyennes des variables**
+
+- 1er cluster : provinces avec une population élevée dont le PIB par habitant et le nombre de médecins par actifs sont élevés et pour lesquelles la moyenne des difficultés socio-économiques est négative.
+
+- 2ème cluster : provinces peu peuplées dont le PIB par habitant est positif. Les moyennes relatives aux variables dites sensibles sont négatives.
+
+- 3ème cluster :  provinces avec un PIB par habitant négatif ; les moyennes relatives à la pauvreté, au  manque d'accès aux soins et aux infrastructures sont positives témoignant des difficultés que rencontrent les habitants.
+
+
+```{r}
+#visualisation k=4
+kable(km2$centers, digits = 3) %>%
+kable_minimal()
+```
+
+<p style="text-align:justify;">
+Avec un partitionnement à 4 clusters, on obtient un groupe dont les provinces sont peu densément peuplées et pour lesquelles la richesse économique est effective (PIB par habitant le plus élevé). Toutefois, bien qu'elles semblent moins touchées par les différents handicaps socio-économiques, elles sont moins bien dotées en médecins.
+</p>
+
+```{r}
+#Variance intra-groupe
+km1$betweenss
+km2$betweenss
+```
+
+<p style="text-align:justify;">
+Si on s'intéresse à l'écart inter-groupe d'un clustering à 3 groupes, celui-ci s'élève à 73.8% avec une variance intra-groupe qui varie entre 2.7 et 30.7 ce qui est tout à fait convenable. Si l'on rajoute un groupe supplémentaire, la variance intergroupe (que l'on cherche à maximiser) s'élève à 86.4% ce qui est davantage appréciable.
+</p>
+
+Comme précédemment, il est impératif de s'assurer que le partitionnement est robuste. Pour ce faire, nous mobiliserons encore une fois les trois méthodes courantes employées.
+
+------------------------------------------------------------------------
+
+##### <u>Méthode 1 : Méthode d'Elbow </u>
+
+```{r}
+#Méthode du coudre d'effondrement (Elbow)
+fviz_nbclust(daSTD, kmeans,method = "wss")+
+  geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")+
+            theme_minimal()
+```
+<br>
+<br>
+Selon cette première méthode, le nombre optimal de cluster serait donc 4.
+
+
+##### <u>Méthode 2 : L'indice silhouette</u>
+
+```{r}
+fviz_nbclust(daSTD, kmeans,method = "silhouette")+
+            theme_minimal()
+```
+<br>
+<br>
+
+L'indice silhouette tend à proposer un partitionnement de 3 groupes.
+
+##### <u>Méthode 3 : L'écart-statistique</u>
+
+```{r}
+gap_stat <- clusGap(daSTD, FUN =kmeans, nstart = 25, K.max = 15, B = 50)
+print(gap_stat, method ="firstmax")
+
+fviz_gap_stat(gap_stat)+theme_minimal()
+```
+
+<br>
+<br>
+Le nombre de groupes qui maximise l'écart dans ce cas semble être 6.
+
+
+L'ensemble des méthodes mobilisées nous conduisent à retenir un résultat différent. En revanche, la suggestion d'un partitionnement en quatre groupes a été davantage récurrentes dans l'ensemble c'est pourquoi c'est le nombre de groupe qui sera retenu.
+
+------------------------------------------------------------------------
+
+### Comparaison des résultats obtenus
+
+A présent, si nous comparons les différents partitionnements obtenus par le moyen des deux méthodes voici ce que nous avons : 
+
+
+```{r}
+#Visualisation des kmeans
+finalGp <- kmeans(daSTD, 4, nstart = 25)
+
+
+library(gridExtra)
+
+#Comparaison graphique des deux méthodes de partitionnement
+
+a1 <- fviz_cluster(list(data = daSTD,cluster = sub_grp1), 
+                   ylab ="", xlab = "", main = "Partionnement - Classification hiérarchique")+
+                  theme_minimal()
+
+
+
+a2<- fviz_cluster(finalGp, data = daSTD, 
+                  main = "Partionnement - K-means",
+                  xlab = "Difficultés socio-économiques - Dimension 1 (53,5%)", 
+                  ylab = "Pop et dynamisme éco - Dimension 2 (24,2%)")+
+                  theme_minimal()
+   
+
+grid.arrange(a1, a2)
+
+  
+```
+<br>
+<br>
+<p style="text-align:justify;">
+La constitution des groupes à partir de deux méthodes différentes est sensiblement similaire confirmant la robustesse des partitionnements réalisés. En conclusion, on peut retenir effectivement que sept provinces sont particulièrement plus vulnérables que d'autres et appartiennent au cluster 3.
+</p>
+
+------------------------------------------------------------------------
+
+# [III - Présentation des résultats et recommandations]{style="color:red"}
+```{r}
+#Définition d'un nouveau subset
+
+progA <- da[c(3,4,7,8,12,15,20),]
+progA <- progA[order(progA$poverty, decreasing = TRUE),] 
+
+library(kableExtra)
+kable(progA[,2:5])%>%
+kable_minimal()
+```
+
+### Programme A
+<p style="text-align:justify;">
+A travers les nombreux outils de statistiques exploratoires employés, ce sont les provinces de **Formosa et Chaco** (extrêmement bien représentées au sein de l'ACP) qui cumulent davantage de difficultés socio-économiques et par conséquent sont **les provinces les plus vulnérables**. D'ailleurs, c'est au sein de ces provinces que l'accès aux soins y est extrêmement difficile. Le taux de pauvreté y est particulièrement élevé par rapport aux provinces les plus vulnérables. La province de Formosa enregistre le taux de mortalité infantile le plus élevé signe d'une précarité sanitaire et économique bien présentes. Ces deux provinces représentent 106 757 personnes touchées par la pauvreté.
+</p>
+
+
+
+### Programme B
+
+<p style="text-align:justify;">
+Le programme "No Poor" destiné à soutenir les familles  résidentes au sein de territoires riches et relativement mieux dotées sur le plan sanitaire permet de venir en aide aux ménages menacés ou victimes de la précarité. A travers les différentes analyses réalisées, on conclue que ce sont les provinces appartenant au cluster 2 à savoir **Santa Fe et Cordoba** qui correspondent le mieux au profil des provinces bénéficiaires. Toutefois, on peut également suggérer que les provinces de **Neuquen, Santa Cruz et Chubut**  puissent également profiter de ce programme puisqu'elles ont des profils sensiblement similaires aux deux premières provinces. En outre, le budget alloué à ce programme d'un montant de 15 millions de dollars devrait bénéficier à *au moins*  plus de 487.000 argentins.
+</p>
+
+
+
+```{r}
+progB <- data_arg[c("Santa Fe", "Cordoba", "Neuquen", "Santa Cruz", "Chubut"),]
+progB$cap_pov <- (progB$poverty/100)*progB$pop
+kable(progB[,c(4,9,13)])%>%
+kable_minimal()
+```
+
+
+
+------------------------------------------------------------------------
+## Discussion des résultats  
+
+<p style="text-align:justify;">
+Les résultats obtenus ont nécéssité de nombreux choix personnels. En effet, le choix des variables conservées au sein de l'ACP repose sur la définition attribuée à la notion de vulnérabilité qui varie d'une discipline à une autre et donc d'un professionnel à un autre. Dans ce cas présent, les variables qui avaient le plus de sens avec la compréhension de la commande ont été de fait retenues. Toutefois, d'autres variables relatives au taux de mortalité infantile ou encore à l'illétrisme sont également intimement liées à la vulnérabilité et l'insertion économique et sociale des individus. Cependant, à la suite de plusieurs essais d'ACP, j'ai fait le choix de ne pas les inclure puisqu'elles ne contribuaient que peu voire prou à la qualité de l'analyse.
+</p>
+
+<p style="text-align:justify;">
+Dans l'ensemble, malgré tous les essais réalisés au cours de ce travail les résultats ne sont pas profondément différents. Au sein de l'ACP, l'hypothèse de départ tendait plutôt vers un partitionnement à trois groupes. Finalement, on en retient 4 car le choix d'une différenciation plus fine entre les profils a été privilégié. Par conséquent, il y aurait probablement eu plus de provinces qui auraient bénéficié du *Programme No poor* si un partitionnement à 3 groupes avait été retenu.<br> 
+</p>
+
+<p style="text-align:justify;">
+Enfin, il y a certaines données relatives aux revenus par habitant ou à la proportion de mères seules par provinces qu'il aurait été pertinent d'avoir afin de proposer une analyse encore plus fine. Pour autant, les recommandations des profils pour chaque programme ne va pas à l'encontre de la géographie économique et sociale du pays. Au contraire, ce sont les provinces globalement attendues dès le départ qui vont finalement en bénéficier.
+</p>
+
+------------------------------------------------------------------------
+# Ressources bibliographiques
+
